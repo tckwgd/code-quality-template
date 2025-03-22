@@ -1,0 +1,58 @@
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build project
+        run: npm run build
+      - name: Start server in background
+        run: npm run start & sleep 10
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v9
+        with:
+          urls: |
+            http://localhost:3000
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          budgetPath: ./.github/lighthouse/budget.json
+          
+  a11y-check:
+    name: Accessibility Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build project
+        run: npm run build
+      - name: Start server
+        run: npm run start & sleep 10
+      - name: Run pa11y
+        run: |
+          npm install -g pa11y-ci
+          pa11y-ci --json http://localhost:3000 > pa11y-results.json || true
+      - name: Upload pa11y results
+        uses: actions/upload-artifact@v3
+        with:
+          name: pa11y-results
+          path: pa11y-results.json
